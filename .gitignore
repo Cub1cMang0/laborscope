@@ -1,0 +1,142 @@
+# ==========================================
+# LaborScope - .gitignore
+# ==========================================
+
+# ==========================================
+# SECRETS & ENVIRONMENT
+# ==========================================
+.env
+*.env
+.env.*
+!.env.example
+application.yml
+application-*.yml
+!application.yml.example
+!application-*.yml.example
+application.properties
+application-*.properties
+!application.properties.example
+secrets/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+
+# ==========================================
+# MAVEN
+# ==========================================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# ==========================================
+# JAVA
+# ==========================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# SPRING BOOT
+# ==========================================
+spring-shell.log
+/logs/
+*.log
+*.log.*
+log/
+
+# ==========================================
+# DOCKER
+# ==========================================
+docker-compose.override.yml
+.docker/
+
+# ==========================================
+# INTELLIJ IDEA
+# ==========================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ==========================================
+# ECLIPSE
+# ==========================================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# ==========================================
+# VS CODE
+# ==========================================
+.vscode/
+!.vscode/extensions.json
+.code-workspace
+
+# ==========================================
+# MACOS
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ==========================================
+# WINDOWS
+# ==========================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ==========================================
+# LINUX
+# ==========================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==========================================
+# TESTING & COVERAGE
+# ==========================================
+/test-output/
+surefire-reports/
+coverage/
+*.exec
+jacoco.exec
+.nyc_output/
