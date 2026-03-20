@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+    db:
+        image: postgres:17
+        container_name: postgres_db
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        ports:
+            - "${POSTGRES_PORT:-5432}:5432"
+        networks:
+            - app-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7.2-alpine
+        restart: unless-stopped
+        container_name: redis_cache
+        env_file:
+            - .env
+        ports:
+            - "${REDIS_PORT:-6379}:6379"
+        command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+        volumes:
+            - redis_data:/data
+        networks:
+            - app-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+
+    kafka:
+        image: bitnami/kafka:3.7
+        container_name: kafka
+        ports:
+            - "9092:9092"
+            - "${KAFKA_PORT:-9094}:9094"
+        environment:
+            - KAFKA_CFG_NODE_ID=1
+            - KAFKA_CFG_PROCESS_ROLES=controller,broker
+            - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+            - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
+            - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+            - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+            - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+            - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+            - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+        volumes:
+            - kafka_data:/var/lib/kafka
+        networks:
+            - app-network
+        healthcheck:
+            test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+            interval: 15s
+            timeout: 10s
+            retries: 5
+
+volumes:
+    postgres_data:
+        driver: local
+    redis_data:
+        driver: local
+    kafka_data:
+        driver: local
+
+networks:
+    app-network:
+        driver: bridge

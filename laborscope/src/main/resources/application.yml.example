@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: laborscope
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laborscope}
+    username: ${POSTGRES_USER:your_db_user}
+    password: ${POSTGRES_PASSWORD:your_db_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+  kafka:
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: crawler-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.laborscope.*"
+
+crawler:
+  max-depth: 2
+  max-pages: 500
+  request-delay-ms: 500
+  user-agent: "LaborScope/1.0 (Portfolio Project)"
+  timeout-ms: 10000
+  kafka:
+    topic-crawl-jobs: crawl-jobs
+    topic-nlp-jobs: nlp-jobs
+
+logging:
+  level:
+    root: INFO
+    com.laborscope: DEBUG
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN

@@ -1,0 +1,19 @@
+# Handle line endings automatically for text files
+* text=auto
+
+# Scripts: Ensure they have the correct endings for their target OS
+mvnw       text eol=lf
+*.sh       text eol=lf
+*.cmd      text eol=crlf
+*.bat      text eol=crlf
+
+# Java Source & Resources: Keep them consistent
+*.java     text
+*.xml      text
+*.properties text
+*.yml      text
+*.yaml     text
+
+# Binary files: Don't try to "fix" these
+*.jar      binary
+*.war      binary
