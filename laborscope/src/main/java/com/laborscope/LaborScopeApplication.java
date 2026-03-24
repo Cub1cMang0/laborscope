@@ -4,7 +4,10 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+
 import crawlercommons.robots.BaseRobotRules;
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.io.FileWriter;
@@ -13,22 +16,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Service
 public class LaborScopeApplication {
-    private static Set<String> visitedUrls = new HashSet<>();
-    private static List<String[]> productData = new ArrayList<>();
-    private static final RobotHandler robotsChecker = new RobotHandler();
-    private static int maxDepth = 2;
-    private static long lastRequestTime = 0;
-    private static final long DELAY_MS = 1000;
+    @Autowired
+    private RobotHandler robotsChecker;
+    private Set<String> visitedUrls = new HashSet<>();
+    private List<String[]> productData = new ArrayList<>();
+    private int maxDepth = 2;
+    private long lastRequestTime = 0;
+    private final long DELAY_MS = 1000;
 
     // Crawls the specified website
-    public static void main(String[] args) {
+    public void startCrawl(String url) {
         try {
             String baseUrl = "https://en.wikipedia.org";
-            String userAgent = "WebCrawler/1.0";
+            String userAgent = "LaborScope/1.0";
             BaseRobotRules rules = robotsChecker.fetchRules(baseUrl, userAgent);
-            String seedUrl = "https://en.wikipedia.org/wiki/Kingdom_Hearts";
-            crawl(seedUrl, 1, rules);
+            crawl(url, 1, rules);
             exportDataToCsv("wikidata.csv");
         }
         catch (IOException e) {
@@ -37,7 +41,7 @@ public class LaborScopeApplication {
     }
 
     // ... retrives the HTML contents of the url (pretty self explanatory)
-    private static Document retrieveHTML(String url) {
+    private Document retrieveHTML(String url) {
         try {
             enforceRateLimit();
             return Jsoup.connect(url).userAgent("Mozilla/5.0 (Compatible; MyBot/1.0)").timeout(10000).get();
@@ -48,7 +52,7 @@ public class LaborScopeApplication {
     }
     
     // Recursively crawls the webpage given while enforcing robots.txt to prevent causing issues to the website domain
-    private static void crawl(String url, int depth, BaseRobotRules rules) {
+    private void crawl(String url, int depth, BaseRobotRules rules) {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return;
         }
@@ -75,7 +79,7 @@ public class LaborScopeApplication {
     }
 
     // Extracts and formats the web-scraped data from the visited URL
-    private static void extractData(Document document) {
+    private void extractData(Document document) {
         String title = escapeCsv(document.select("h1#firstHeading").text());        
         Element introElem = document.select("div.mw-parser-output > p:not(.mw-empty-elt)").first();
         String intro = (introElem != null) ? escapeCsv(introElem.text()) : "";
@@ -95,7 +99,7 @@ public class LaborScopeApplication {
     }
 
     // Prevents early termination of paragraph data when parsing data into a CSV file 
-    private static String escapeCsv(String data) {
+    private String escapeCsv(String data) {
         if (data == null || data.isEmpty()) return "";
         String cleanData = data.replaceAll("\\[\\d+\\]", "");
         cleanData = cleanData.replace("\"", "\"\"");
@@ -103,7 +107,7 @@ public class LaborScopeApplication {
     }
 
     // Enforces request limit in order to avoid being IP blocked by the crawl-targeted website
-    private static void enforceRateLimit() {
+    private void enforceRateLimit() {
         long currentTime = System.currentTimeMillis();
         long timeSinceLastRequest = currentTime - lastRequestTime;
         if (timeSinceLastRequest < DELAY_MS) {
@@ -118,7 +122,7 @@ public class LaborScopeApplication {
     }
 
     // Formats JSoup HTML-Parsed page information
-    private static void exportDataToCsv(String fileName) {
+    private void exportDataToCsv(String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             writer.append("Page Title,Attribute,Value\n");
             for (String[] row : productData) {

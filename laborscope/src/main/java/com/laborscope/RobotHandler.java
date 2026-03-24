@@ -3,12 +3,17 @@ package com.laborscope;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
 import crawlercommons.robots.BaseRobotRules;
 import crawlercommons.robots.SimpleRobotRulesParser;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class RobotHandler {
     private final OkHttpClient client = new OkHttpClient();
     public BaseRobotRules fetchRules(String baseUrl, String userAgent) throws IOException {
