@@ -19,6 +19,7 @@ import java.util.Set;
 @Service
 public class LaborScopeApplication {
     @Autowired
+    // Set up class variables and have them be dependecy injected
     private RobotHandler robotsChecker;
     private Set<String> visitedUrls = new HashSet<>();
     private List<String[]> productData = new ArrayList<>();
@@ -29,9 +30,12 @@ public class LaborScopeApplication {
     // Crawls the specified website
     public void startCrawl(String url) {
         try {
+            // Initialize web url to begin crawling (wikipedia is the dummy url for testing)
             String baseUrl = "https://en.wikipedia.org";
             String userAgent = "LaborScope/1.0";
+            // Initialize robots.txt from the baseUrl.
             BaseRobotRules rules = robotsChecker.fetchRules(baseUrl, userAgent);
+            // Crawl and export data
             crawl(url, 1, rules);
             exportDataToCsv("wikidata.csv");
         }
@@ -43,6 +47,7 @@ public class LaborScopeApplication {
     // ... retrives the HTML contents of the url (pretty self explanatory)
     private Document retrieveHTML(String url) {
         try {
+            // Fetches the HTML contents while enforcing requests rate limit to avoid being IP blocked (bad)
             enforceRateLimit();
             return Jsoup.connect(url).userAgent("Mozilla/5.0 (Compatible; MyBot/1.0)").timeout(10000).get();
         } catch (IOException e) {
@@ -53,12 +58,16 @@ public class LaborScopeApplication {
     
     // Recursively crawls the webpage given while enforcing robots.txt to prevent causing issues to the website domain
     private void crawl(String url, int depth, BaseRobotRules rules) {
+        // Avoid 
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return;
         }
+        // Stops crawling when the max depth variable is reached
+        // Also, prevents crawling visited urls
         if (depth > maxDepth || visitedUrls.contains(url)) {
             return;
         }
+        // Prevents visiting urls defined in the robots.txt file
         if (rules != null && !robotsChecker.isAllowed(rules, url)) {
             System.out.println(url + " blocked by robots.txt");
             return;
@@ -68,6 +77,7 @@ public class LaborScopeApplication {
         Document doc = retrieveHTML(url);
         if (doc != null) {
             extractData(doc);
+            // Extracts pagination links on Wikipedia (this process is a placeholder until I get the distributrd system working)
             Elements paginationLinks = doc.select("div.mw-parser-output p a[href^='/wiki/']");
             for (Element link : paginationLinks) {
                 String nextUrl = link.absUrl("href");
