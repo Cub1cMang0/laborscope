@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
     db:
         image: postgres:17
@@ -28,7 +26,7 @@ services:
             - .env
         ports:
             - "${REDIS_PORT:-6379}:6379"
-        command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+        command: ["redis-server", "--save", "20", "1", "--loglevel", "warning", "--requirepass", "${REDIS_PASSWORD}"]
         volumes:
             - redis_data:/data
         networks:
@@ -39,32 +37,69 @@ services:
             timeout: 5s
             retries: 5
 
-
     kafka:
-        image: bitnami/kafka:3.7
+        image: apache/kafka:3.7.0
         container_name: kafka
         ports:
             - "9092:9092"
             - "${KAFKA_PORT:-9094}:9094"
         environment:
-            - KAFKA_CFG_NODE_ID=1
-            - KAFKA_CFG_PROCESS_ROLES=controller,broker
-            - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+            - KAFKA_NODE_ID=1
+            - KAFKA_PROCESS_ROLES=controller,broker
+            - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
             - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
-            - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-            - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-            - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-            - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-            - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+            - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+            - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+            - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+            - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+            - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+            - KAFKA_LOGS_DIR=/var/lib/kafka/data
+            - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+            - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+            - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
         volumes:
-            - kafka_data:/var/lib/kafka
+            - kafka_data:/bitnami/kafka
         networks:
             - app-network
         healthcheck:
-            test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
-            interval: 15s
+            test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
             timeout: 10s
             retries: 5
+
+    grafana:
+        image: grafana/grafana-oss
+        container_name: grafana
+        restart: unless-stopped
+        ports:
+            - "${GRAFANA_PORT:-3000}:3000"
+        volumes:
+            - grafana-storage:/var/lib/grafana
+        environment:
+            - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+        networks:
+            - app-network
+
+    python-nlp:
+        build:
+            context: ./nlp-service
+            dockerfile: Dockerfile
+        depends_on:
+            kafka:
+                condition: service_healthy
+            db:
+                condition: service_healthy
+        container_name: python_nlp
+        environment:
+            - KAFKA_BROKER=kafka:9092
+            - KAFKA_GROUP_ID=nlp-processor-group
+            - KAFKA_TOPIC_NLP_JOBS=${KAFKA_TOPIC_NLP_JOBS}
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            - PYTHONUNBUFFERED=1
+        networks:
+            - app-network
+        volumes:
+            - ./nlp-service:/app:z
+            - nlp_model_cache:/root/.cache
 
 volumes:
     postgres_data:
@@ -72,6 +107,10 @@ volumes:
     redis_data:
         driver: local
     kafka_data:
+        driver: local
+    grafana-storage:
+        driver: local
+    nlp_model_cache:
         driver: local
 
 networks:
