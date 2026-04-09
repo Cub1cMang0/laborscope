@@ -14,21 +14,28 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
 @Configuration
 public class RedisConfig {
+
+    // Extract redis host from application.yml
     @Value ("${spring.data.redis.host}")
     private String redisHost;
     
+    // Extract redis port form application.yml
     @Value ("${spring.data.redis.port}")
     private int redisPort;
 
+    // Extract max active from application.yml
     @Value ("${spring.data.redis.lettuce.pool.max-active}")
     private int maxActive;
 
+    // Extract max idle from application.yml
     @Value ("${spring.data.redis.lettuce.pool.max-idle}")
     private int maxIdle;
 
+    // Extract min idle from application.yml
     @Value ("${spring.data.redis.lettuce.pool.min-idle}")
     private int minIdle;
 
+    // Initialize GenericObkectPoolConfig utilizing previously defined @Values
     @Bean
     public GenericObjectPoolConfig<?> genericObjectPoolConfig() {
         GenericObjectPoolConfig<?> config = new GenericObjectPoolConfig<>();
@@ -38,6 +45,7 @@ public class RedisConfig {
         return config;
     }
 
+    // Create LettuceConnectionFactory using redis host + port and GenericObjectPoolConfig to manage connections
     @Bean
     public LettuceConnectionFactory redisConnectionFactory(GenericObjectPoolConfig<?> genericObjectPoolConfig) {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration(redisHost, redisPort);
@@ -48,6 +56,7 @@ public class RedisConfig {
         return lettuceConnectionFactory;
     }
 
+    // Create Redis template from key + value serializers and lettuceconnectionfactory for simple connection management 
     @Bean
     public RedisTemplate<String, Object> redisCacheTemplate(LettuceConnectionFactory redisConnectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();

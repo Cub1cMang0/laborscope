@@ -20,15 +20,18 @@ import java.util.Map;
 @Configuration
 @EnableKafka
 public class KafkaConfig {
+
+    // Extract bootstrap servers defined in application.yml
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
-
+    // Extract group id defined in application.yml
     @Value("$spring.kafka.consumer.groupId}")
     private String groupId;
-
+    // Extract acks defined in application.yml
     @Value ("$spring.kafka.producer.acks")
     private String acks;
 
+    // Initialize Producer Factory's bootstrap servers, key + value serializers, and acks
     @Bean
     public ProducerFactory<String, String> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -44,6 +47,7 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
+    // Initialize Consumer Factory's bootstrap servers, key + value deserializers, and acks
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -54,6 +58,7 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
+    // Initialize Container Factory using Consumer factory.
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
