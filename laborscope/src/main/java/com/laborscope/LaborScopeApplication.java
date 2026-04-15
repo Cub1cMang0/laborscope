@@ -1,14 +1,23 @@
 package com.laborscope;
 
+// Jsoup imports to handle HTMLs
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+// BaseRobotRules in order to avoid IP block for not following robots.txt
 import crawlercommons.robots.BaseRobotRules;
 import org.springframework.stereotype.Service;
+
+// Imports Kafka producer to send jobs
+import com.laborscope.kafka.CrawlJobProducer;
+import com.laborscope.kafka.CrawlJobProducer.CrawlJob;
+
+// Autowire bean
 import org.springframework.beans.factory.annotation.Autowired;
 
+// Basic java data types
 import java.io.IOException;
 import java.io.FileWriter;
 import java.util.ArrayList;
@@ -21,6 +30,7 @@ public class LaborScopeApplication {
     @Autowired
     // Set up class variables and have them be dependecy injected
     private RobotHandler robotsChecker;
+    private CrawlJobProducer crawlProducer;
     private Set<String> visitedUrls = new HashSet<>();
     private List<String[]> productData = new ArrayList<>();
     private int maxDepth = 2;
@@ -28,7 +38,7 @@ public class LaborScopeApplication {
     private final long DELAY_MS = 1000;
 
     // Crawls the specified website
-    public void startCrawl(String url) {
+    public void startCrawl(CrawlJob job) {
         try {
             // Initialize web url to begin crawling (wikipedia is the dummy url for testing)
             String baseUrl = "https://en.wikipedia.org";
@@ -36,7 +46,7 @@ public class LaborScopeApplication {
             // Initialize robots.txt from the baseUrl.
             BaseRobotRules rules = robotsChecker.fetchRules(baseUrl, userAgent);
             // Crawl and export data
-            crawl(url, 1, rules);
+            crawl(job, rules);
             exportDataToCsv("wikidata.csv");
         }
         catch (IOException e) {
@@ -57,7 +67,9 @@ public class LaborScopeApplication {
     }
     
     // Recursively crawls the webpage given while enforcing robots.txt to prevent causing issues to the website domain
-    private void crawl(String url, int depth, BaseRobotRules rules) {
+    private void crawl(CrawlJob job, BaseRobotRules rules) {
+        String url = job.url();
+        int depth = job.depth();
         // Avoid 
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return;
@@ -82,7 +94,7 @@ public class LaborScopeApplication {
             for (Element link : paginationLinks) {
                 String nextUrl = link.absUrl("href");
                 if (!nextUrl.isEmpty() && !visitedUrls.contains(nextUrl)) {
-                    crawl(nextUrl, depth + 1, rules);
+                    crawlProducer.publish(url, depth + 1);
                 }
             }
         }

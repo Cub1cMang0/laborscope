@@ -6,6 +6,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.laborscope.kafka.CrawlJobProducer.CrawlJob;
 import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication
@@ -19,6 +20,6 @@ public class LaborScopeController {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
-        laborscopeservice.startCrawl("https://en.wikipedia.org");
+        laborscopeservice.startCrawl(new CrawlJob("https://en.wikipedia.org", 1));
 	}
 }
