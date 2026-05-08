@@ -15,8 +15,8 @@ public class CrawlJobProducer {
     public record CrawlJob(String url, int depth) {}
 
     public CrawlJobProducer(
-            @Value("${spring.kafka.topic-crawl-jobs}") String topic,
-            @Value("${spring.crawler.max-depth}") int maxDepth,
+            @Value("${crawler.kafka.topic-crawl-jobs}") String topic,
+            @Value("${crawler.max-depth}") int maxDepth,
             KafkaTemplate<String, Object> kafkaTemplate) {
         this.topic = topic;
         this.maxDepth = maxDepth;

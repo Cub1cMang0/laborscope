@@ -9,13 +9,11 @@ import org.jsoup.select.Elements;
 // BaseRobotRules in order to avoid IP block for not following robots.txt
 import crawlercommons.robots.BaseRobotRules;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 // Imports Kafka producer to send jobs
 import com.laborscope.kafka.CrawlJobProducer;
 import com.laborscope.kafka.CrawlJobProducer.CrawlJob;
-
-// Autowire bean
-import org.springframework.beans.factory.annotation.Autowired;
 
 // Basic java data types
 import java.io.IOException;
@@ -24,18 +22,30 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Collections;
 
 @Service
 public class LaborScopeApplication {
-    @Autowired
     // Set up class variables and have them be dependecy injected
-    private RobotHandler robotsChecker;
-    private CrawlJobProducer crawlProducer;
-    private Set<String> visitedUrls = new HashSet<>();
-    private List<String[]> productData = new ArrayList<>();
-    private int maxDepth = 2;
+    private final RobotHandler robotsChecker;
+    private final CrawlJobProducer crawlProducer;
+    private final Set<String> visitedUrls = new HashSet<>();
+    private final List<String[]> productData = Collections.synchronizedList(new ArrayList<>());
+    private final int maxDepth;
+    private final long DELAY_MS;
     private long lastRequestTime = 0;
-    private final long DELAY_MS = 1000;
+
+    // Constructor
+    public LaborScopeApplication(
+            RobotHandler robotsChecker, 
+            CrawlJobProducer crawlProducer,
+            @Value("${crawler.max-depth:2}") int maxDepth,
+            @Value("${crawler.request-delay-ms:1000}") long delayMs) {
+        this.robotsChecker = robotsChecker;
+        this.crawlProducer = crawlProducer;
+        this.maxDepth = maxDepth;
+        this.DELAY_MS = delayMs;
+    }
 
     // Crawls the specified website
     public void startCrawl(CrawlJob job) {
@@ -47,7 +57,6 @@ public class LaborScopeApplication {
             BaseRobotRules rules = robotsChecker.fetchRules(baseUrl, userAgent);
             // Crawl and export data
             crawl(job, rules);
-            exportDataToCsv("wikidata.csv");
         }
         catch (IOException e) {
             System.err.println("Failed to fetch robots.txt: " + e.getMessage());
@@ -77,6 +86,7 @@ public class LaborScopeApplication {
         // Stops crawling when the max depth variable is reached
         // Also, prevents crawling visited urls
         if (depth > maxDepth || visitedUrls.contains(url)) {
+            System.out.println("Skipping already visited: " + url); // Uncomment this to see the flood
             return;
         }
         // Prevents visiting urls defined in the robots.txt file
@@ -94,7 +104,7 @@ public class LaborScopeApplication {
             for (Element link : paginationLinks) {
                 String nextUrl = link.absUrl("href");
                 if (!nextUrl.isEmpty() && !visitedUrls.contains(nextUrl)) {
-                    crawlProducer.publish(url, depth + 1);
+                    crawlProducer.publish(nextUrl, depth + 1);
                 }
             }
         }
@@ -144,7 +154,7 @@ public class LaborScopeApplication {
     }
 
     // Formats JSoup HTML-Parsed page information
-    private void exportDataToCsv(String fileName) {
+    public void exportDataToCsv(String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
             writer.append("Page Title,Attribute,Value\n");
             for (String[] row : productData) {

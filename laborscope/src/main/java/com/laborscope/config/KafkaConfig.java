@@ -11,8 +11,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.beans.factory.annotation.Value;
 
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonSerializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,15 +25,15 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
     // Extract group id defined in application.yml
-    @Value("$spring.kafka.consumer.groupId}")
+    @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
     // Extract acks defined in application.yml
-    @Value ("$spring.kafka.producer.acks")
+    @Value ("${spring.kafka.producer.acks}")
     private String acks;
 
     // Initialize Producer Factory's bootstrap servers, key + value serializers, and acks
     @Bean
-    public ProducerFactory<String, String> producerFactory() {
+    public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -43,8 +43,8 @@ public class KafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
+    public KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> pf) {
+        return new KafkaTemplate<>(pf);
     }
 
     // Initialize Consumer Factory's bootstrap servers, key + value deserializers, and acks
@@ -55,6 +55,8 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.laborscope.*");
+        configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.laborscope.kafka.CrawlJobProducer$CrawlJob");
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
