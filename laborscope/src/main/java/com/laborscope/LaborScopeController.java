@@ -38,5 +38,5 @@ public class LaborScopeController {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
-		crawlJobProducer.publish("https://en.wikipedia.org/wiki/Super_Mario", 1);	}
+		crawlJobProducer.publish("https://en.wikipedia.org", 1);	}
 }
