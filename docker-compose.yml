@@ -21,7 +21,7 @@ services:
     redis:
         image: redis:7.2-alpine
         restart: unless-stopped
-        container_name: redis_cache
+        container_name: laborscope_redis
         env_file:
             - .env
         ports:
