@@ -9,31 +9,42 @@ import org.jsoup.select.Elements;
 // BaseRobotRules in order to avoid IP block for not following robots.txt
 import crawlercommons.robots.BaseRobotRules;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 // Imports Kafka producer to send jobs
 import com.laborscope.kafka.CrawlJobProducer;
 import com.laborscope.kafka.CrawlJobProducer.CrawlJob;
 
+// Imports for page saving into PostgreSQL
+import com.laborscope.model.CrawledPage;
+import com.laborscope.repository.CrawledPageRepository;
+
+// Imports for Redis url duplication checking
+import org.springframework.data.redis.core.RedisTemplate;
+
 // Basic java data types
 import java.io.IOException;
 import java.io.FileWriter;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Collections;
+import java.time.LocalDateTime;
 
 @Service
 public class LaborScopeApplication {
     // Set up class variables and have them be dependecy injected
     private final RobotHandler robotsChecker;
     private final CrawlJobProducer crawlProducer;
-    private final Set<String> visitedUrls = new HashSet<>();
     private final List<String[]> productData = Collections.synchronizedList(new ArrayList<>());
     private final int maxDepth;
     private final long DELAY_MS;
     private long lastRequestTime = 0;
+    private static final String REDIS_KEY_PREFIX = "visited:url:";
+
+    @Autowired
+    private CrawledPageRepository crawledPageRepository;
+    private RedisTemplate<String, Object> redisCacheTemplate;
 
     // Constructor
     public LaborScopeApplication(
@@ -79,14 +90,29 @@ public class LaborScopeApplication {
     private void crawl(CrawlJob job, BaseRobotRules rules) {
         String url = job.url();
         int depth = job.depth();
-        // Avoid 
+        // Avoids non related http / https links
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return;
         }
-        // Stops crawling when the max depth variable is reached
-        // Also, prevents crawling visited urls
-        if (depth > maxDepth || visitedUrls.contains(url)) {
-            System.out.println("Skipping already visited: " + url); // Uncomment this to see the flood
+        // Stops crawl when max depth is reached
+        if (depth > maxDepth)
+        {
+            System.out.printf("Max depth of %d reached", maxDepth);
+            return;
+        }
+        String redisKey = REDIS_KEY_PREFIX + url;
+        boolean visited = Boolean.TRUE.equals(redisCacheTemplate.hasKey(redisKey));
+        if (!visited)
+        {
+            visited = crawledPageRepository.existsByUrl(url);
+            if (visited)
+            {
+                redisCacheTemplate.opsForValue().set(redisKey, "true");
+            }
+        }
+        if (visited)
+        {
+            System.out.println("Skipping (Cache/DB hit): " + url);
             return;
         }
         // Prevents visiting urls defined in the robots.txt file
@@ -95,39 +121,36 @@ public class LaborScopeApplication {
             return;
         }
         System.out.println("Crawling: " + url);
-        visitedUrls.add(url);
+        redisCacheTemplate.opsForValue().set(redisKey, "true");
         Document doc = retrieveHTML(url);
-        if (doc != null) {
-            extractData(doc);
+        if (doc != null) 
+        {
+            String[] doc_info = extractData(doc);
+            String doc_title = doc_info[0];
+            String doc_content = doc_info[1];
+            CrawledPage page = new CrawledPage(url, doc_title, doc_content, LocalDateTime.now(), depth);
+            crawledPageRepository.save(page);
             // Extracts pagination links on Wikipedia (this process is a placeholder until I get the distributrd system working)
             Elements paginationLinks = doc.select("div.mw-parser-output p a[href^='/wiki/']");
-            for (Element link : paginationLinks) {
+            for (Element link : paginationLinks) 
+            {
                 String nextUrl = link.absUrl("href");
-                if (!nextUrl.isEmpty() && !visitedUrls.contains(nextUrl)) {
-                    crawlProducer.publish(nextUrl, depth + 1);
+                if (!nextUrl.isEmpty()) 
+                {
+                    if (!Boolean.TRUE.equals(redisCacheTemplate.hasKey(REDIS_KEY_PREFIX + nextUrl)))
+                    {
+                        crawlProducer.publish(nextUrl, depth + 1);
+                    }
                 }
             }
         }
     }
 
     // Extracts and formats the web-scraped data from the visited URL
-    private void extractData(Document document) {
-        String title = escapeCsv(document.select("h1#firstHeading").text());        
-        Element introElem = document.select("div.mw-parser-output > p:not(.mw-empty-elt)").first();
-        String intro = (introElem != null) ? escapeCsv(introElem.text()) : "";
-        if (!intro.isEmpty()) {
-            productData.add(new String[]{title, "Summary/Intro", intro});
-        }
-        Elements infoboxRows = document.select("table.infobox tr");
-        for (Element row : infoboxRows) {
-            Element label = row.selectFirst("th.infobox-label");
-            Element data = row.selectFirst("td.infobox-data");
-            if (label != null && data != null) {
-                String key = escapeCsv(label.text());
-                String value = escapeCsv(data.text());
-                productData.add(new String[]{title, key, value});
-            }
-        }
+    private String[] extractData(Document document) {
+        String title = escapeCsv(document.select("h1#firstHeading").text());    
+        String pageText = document.body().text();    
+        return new String[] {title, pageText};
     }
 
     // Prevents early termination of paragraph data when parsing data into a CSV file 
@@ -156,7 +179,7 @@ public class LaborScopeApplication {
     // Formats JSoup HTML-Parsed page information
     public void exportDataToCsv(String fileName) {
         try (FileWriter writer = new FileWriter(fileName)) {
-            writer.append("Page Title,Attribute,Value\n");
+            writer.append("Page Title,Value\n");
             for (String[] row : productData) {
                 writer.append(String.join(",", row)).append("\n");
             }
