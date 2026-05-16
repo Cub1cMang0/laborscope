@@ -18,7 +18,7 @@ public interface CrawledPageRepository extends JpaRepository<CrawledPage, Long>{
     // Find pages containing specific a specific key word (ignoring case)
     List<CrawledPage> findByTitleContains(String keyword);
     // Find pages crawled before a given date
-    List<CrawledPage> findCrawledAtBefore(LocalDateTime date);
+    List<CrawledPage> findByCrawledAtBefore(LocalDateTime date);
     // Find pages discovered at a specific depth
     List<CrawledPage> findByDepth(int depth);
 }

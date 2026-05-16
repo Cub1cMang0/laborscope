@@ -3,6 +3,7 @@ package com.laborscope.model;
 // JPA imports
 import java.time.LocalDateTime;
 import jakarta.persistence.Id;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,8 +16,11 @@ public class CrawledPage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     // PostgreSQL fields
     private Long id;
+    @Column(unique = true, length = 2048)
     private String url;
+    @Column(length = 500)
     private String title;
+    @Column(columnDefinition = "TEXT")
     private String urlContent;
     private LocalDateTime crawledAt;
     private int depth;
@@ -66,7 +70,7 @@ public class CrawledPage {
     @Override
     public String toString()
     {
-        return String.format("CrawledPage[id=%d, url='%s', title='%s', urlContent='%s', urlTimeStamp='%s', depth=%d]",
+        return String.format("CrawledPage[id=%d, url='%s', title='%s', urlContent='%s', crawledAt='%s', depth=%d]",
             id, url, title, urlContent, crawledAt, depth
         );
     }
