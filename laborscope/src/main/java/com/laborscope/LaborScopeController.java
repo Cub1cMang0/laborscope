@@ -14,29 +14,13 @@ import io.github.cdimascio.dotenv.Dotenv;
 @SpringBootApplication
 public class LaborScopeController {
 	@Autowired
-	private LaborScopeApplication laborscopeservice;
-	@Autowired
 	private CrawlJobProducer crawlJobProducer;
 	public static void main(String[] args) {
 		Dotenv.configure().directory("..").ignoreIfMissing().systemProperties().load();
 		SpringApplication.run(LaborScopeController.class, args);
 	}
 
-	// Inside LaborScopeController
-	@GetMapping("/export")
-	public String triggerExport() {
-		try
-		{
-			laborscopeservice.exportDataToCsv("wikidata.csv");
-			return "Success!";
-		}
-		catch (Exception e)
-		{
-			return "Export failed: " + e.getMessage();
-		}
-	}
-
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
-		crawlJobProducer.publish("https://en.wikipedia.org", 1);	}
+		crawlJobProducer.publish("https://en.wikipedia.org/wiki/Kingdom_Hearts", 1);	}
 }

@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 // Imports Kafka producer to send jobs
 import com.laborscope.kafka.CrawlJobProducer;
+import com.laborscope.kafka.NlpJobProducer;
 import com.laborscope.kafka.CrawlJobProducer.CrawlJob;
 
 // Imports for page saving into PostgreSQL
@@ -25,10 +26,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 
 // Basic java data types
 import java.io.IOException;
-import java.io.FileWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collections;
 import java.time.LocalDateTime;
 
 @Service
@@ -36,24 +33,26 @@ public class LaborScopeApplication {
     // Set up class variables and have them be dependecy injected
     private final RobotHandler robotsChecker;
     private final CrawlJobProducer crawlProducer;
-    private final List<String[]> productData = Collections.synchronizedList(new ArrayList<>());
+    private final NlpJobProducer nlpProducer;
     private final int maxDepth;
     private final long DELAY_MS;
     private long lastRequestTime = 0;
     private static final String REDIS_KEY_PREFIX = "visited:url:";
-
+    @Autowired
+    private RedisTemplate<String, String> redisCacheTemplate;
     @Autowired
     private CrawledPageRepository crawledPageRepository;
-    private RedisTemplate<String, Object> redisCacheTemplate;
 
     // Constructor
     public LaborScopeApplication(
             RobotHandler robotsChecker, 
             CrawlJobProducer crawlProducer,
+            NlpJobProducer nlpProducer,
             @Value("${crawler.max-depth:2}") int maxDepth,
             @Value("${crawler.request-delay-ms:1000}") long delayMs) {
         this.robotsChecker = robotsChecker;
         this.crawlProducer = crawlProducer;
+        this.nlpProducer = nlpProducer;
         this.maxDepth = maxDepth;
         this.DELAY_MS = delayMs;
     }
@@ -126,19 +125,29 @@ public class LaborScopeApplication {
         if (doc != null) 
         {
             String[] doc_info = extractData(doc);
+            // Extracts title from page
             String doc_title = doc_info[0];
+            // Extracts readable, clean body page content from page
             String doc_content = doc_info[1];
+            // Construct a CrawledPage objects from all the necessary data
             CrawledPage page = new CrawledPage(url, doc_title, doc_content, LocalDateTime.now(), depth);
-            crawledPageRepository.save(page);
+            // Save the page into the repository to be stored in PostgreSQL
+            CrawledPage savedPage = crawledPageRepository.save(page);
+            // Use the saved page's id and url to publish and be processed by Python and HuggingFace
+            nlpProducer.publish(savedPage.getId(), url);
             // Extracts pagination links on Wikipedia (this process is a placeholder until I get the distributrd system working)
             Elements paginationLinks = doc.select("div.mw-parser-output p a[href^='/wiki/']");
             for (Element link : paginationLinks) 
             {
+                // Fetch the next url to crawl
                 String nextUrl = link.absUrl("href");
+                // Ensure that the next url isn't empty
                 if (!nextUrl.isEmpty()) 
                 {
+                    // Ensure the next url published isn't already in redis cache
                     if (!Boolean.TRUE.equals(redisCacheTemplate.hasKey(REDIS_KEY_PREFIX + nextUrl)))
                     {
+                        // Publish the next url to crawl
                         crawlProducer.publish(nextUrl, depth + 1);
                     }
                 }
@@ -148,17 +157,9 @@ public class LaborScopeApplication {
 
     // Extracts and formats the web-scraped data from the visited URL
     private String[] extractData(Document document) {
-        String title = escapeCsv(document.select("h1#firstHeading").text());    
+        String title = document.select("h1#firstHeading").text();    
         String pageText = document.body().text();    
         return new String[] {title, pageText};
-    }
-
-    // Prevents early termination of paragraph data when parsing data into a CSV file 
-    private String escapeCsv(String data) {
-        if (data == null || data.isEmpty()) return "";
-        String cleanData = data.replaceAll("\\[\\d+\\]", "");
-        cleanData = cleanData.replace("\"", "\"\"");
-        return "\"" + cleanData.trim() + "\"";
     }
 
     // Enforces request limit in order to avoid being IP blocked by the crawl-targeted website
@@ -174,19 +175,5 @@ public class LaborScopeApplication {
             }
         }
         lastRequestTime = System.currentTimeMillis();
-    }
-
-    // Formats JSoup HTML-Parsed page information
-    public void exportDataToCsv(String fileName) {
-        try (FileWriter writer = new FileWriter(fileName)) {
-            writer.append("Page Title,Value\n");
-            for (String[] row : productData) {
-                writer.append(String.join(",", row)).append("\n");
-            }
-            System.out.println("--- Export Complete ---");
-            System.out.println("Data successfully saved to: " + fileName);
-        } catch (IOException e) {
-            System.err.println("Error writing to CSV: " + e.getMessage());
-        }
     }
 }

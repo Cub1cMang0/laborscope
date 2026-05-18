@@ -19,9 +19,13 @@ public class RedisConfig {
     @Value ("${spring.data.redis.host}")
     private String redisHost;
     
-    // Extract redis port form application.yml
+    // Extract redis port from application.yml
     @Value ("${spring.data.redis.port}")
     private int redisPort;
+
+    // Extract redis password from application.yml
+    @Value ("${spring.data.redis.password}")
+    private String redisPassword;
 
     // Extract max active from application.yml
     @Value ("${spring.data.redis.lettuce.pool.max-active}")
@@ -49,6 +53,9 @@ public class RedisConfig {
     @Bean
     public LettuceConnectionFactory redisConnectionFactory(GenericObjectPoolConfig<?> genericObjectPoolConfig) {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration(redisHost, redisPort);
+        if (redisPassword != null && !redisPassword.isEmpty()) {
+            redisStandaloneConfiguration.setPassword(redisPassword);
+        }
         LettuceClientConfiguration clientConfig = LettucePoolingClientConfiguration.builder()
         .poolConfig(genericObjectPoolConfig).build();
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration, clientConfig);
