@@ -13,7 +13,7 @@ public class NlpJobProducer {
     public record NlpJob(Long pageId, String url) {}
 
     public NlpJobProducer(
-            @Value("${crawler.kafka.topic-nlp-jobs") String nlpTopic,
+            @Value("${crawler.kafka.topic-nlp-jobs}") String nlpTopic,
             KafkaTemplate<String, Object> kafkaTemplate) {
         this.nlpTopic = nlpTopic;
         this.kafkaTemplate = kafkaTemplate;

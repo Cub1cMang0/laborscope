@@ -1,6 +1,5 @@
 confluent-kafka
 transformers
-psycopg2-binary
 sqlalchemy
 pandas
 numpy
