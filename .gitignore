@@ -140,3 +140,4 @@ coverage/
 *.exec
 jacoco.exec
 .nyc_output/
+__pycache__/

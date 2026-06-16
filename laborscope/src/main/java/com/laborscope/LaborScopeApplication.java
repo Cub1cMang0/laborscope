@@ -158,7 +158,7 @@ public class LaborScopeApplication {
     // Extracts and formats the web-scraped data from the visited URL
     private String[] extractData(Document document) {
         String title = document.select("h1#firstHeading").text();    
-        String pageText = document.body().text();    
+        String pageText = document.select("div.mw-parser-output > p").text();
         return new String[] {title, pageText};
     }
 

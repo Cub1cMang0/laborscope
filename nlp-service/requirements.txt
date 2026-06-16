@@ -1,5 +1,13 @@
-confluent-kafka
-transformers
-sqlalchemy
-pandas
-numpy
+# Only using the CPU version because it's just crawling for text
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.0+cpu
+confluent-kafka==2.4.0
+transformers==4.41.0
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.30
+pandas==2.2.2
+numpy==1.26.4
+
+# Used for HuggingFace tokenizers and models
+sentencepiece==0.2.0
+accelerate==0.30.1

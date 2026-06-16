@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working dir
 WORKDIR /app
 
-# Install library dependencies
+# Install library dependencies (ensure caching because of pytorch)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 # Copy and run the python nlp file
 COPY . .
-CMD ["python", "-u", "main.py"]
+CMD ["python", "-u", "nlp_analysis.py"]
