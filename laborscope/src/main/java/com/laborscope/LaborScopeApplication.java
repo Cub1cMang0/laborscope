@@ -80,6 +80,7 @@ public class LaborScopeApplication {
             enforceRateLimit();
             return Jsoup.connect(url).userAgent("Mozilla/5.0 (Compatible; MyBot/1.0)").timeout(10000).get();
         } catch (IOException e) {
+            // Print out any IO Errors encountered 
             System.out.println("Error fetching " + url + ": " + e.getMessage());
             return null;
         }
@@ -99,16 +100,21 @@ public class LaborScopeApplication {
             System.out.printf("Max depth of %d reached", maxDepth);
             return;
         }
+        // Construct Redis Key
         String redisKey = REDIS_KEY_PREFIX + url;
+        // Check if the given URL has been visited using the Redis Key
         boolean visited = Boolean.TRUE.equals(redisCacheTemplate.hasKey(redisKey));
         if (!visited)
         {
+            // Check to ensure that the actual repository hasn't crawled the given url
             visited = crawledPageRepository.existsByUrl(url);
             if (visited)
             {
+                // Add the given URL to the Redis Cache Template to ensure future visit check
                 redisCacheTemplate.opsForValue().set(redisKey, "true");
             }
         }
+        // Skip the URL because it's already been crawled
         if (visited)
         {
             System.out.println("Skipping (Cache/DB hit): " + url);
@@ -120,7 +126,9 @@ public class LaborScopeApplication {
             return;
         }
         System.out.println("Crawling: " + url);
+        // Set the URL as visited since it's going to be processed shortly
         redisCacheTemplate.opsForValue().set(redisKey, "true");
+        // Retrieve HTML contents
         Document doc = retrieveHTML(url);
         if (doc != null) 
         {
@@ -136,19 +144,27 @@ public class LaborScopeApplication {
             // Use the saved page's id and url to publish and be processed by Python and HuggingFace
             nlpProducer.publish(savedPage.getId(), url);
             // Extracts pagination links on Wikipedia (this process is a placeholder until I get the distributrd system working)
-            Elements paginationLinks = doc.select("div.mw-parser-output p a[href^='/wiki/']");
+            Elements paginationLinks = doc.select("div.mw-parser-output a");
             for (Element link : paginationLinks) 
             {
                 // Fetch the next url to crawl
                 String nextUrl = link.absUrl("href");
-                // Ensure that the next url isn't empty
-                if (!nextUrl.isEmpty()) 
+                // Define the proper Wikipedia link prefix (in english)
+                String wikiPrefix = "https://en.wikipedia.org/wiki/";
+                // Ensure that only valid Wikipedia links are crawled
+                if (nextUrl.startsWith(wikiPrefix))
                 {
-                    // Ensure the next url published isn't already in redis cache
-                    if (!Boolean.TRUE.equals(redisCacheTemplate.hasKey(REDIS_KEY_PREFIX + nextUrl)))
+                    // Extract article name
+                    String articleTitle = nextUrl.substring(wikiPrefix.length());
+                    // Skip pages if the title contains a namespace colon, an anchor hash, or is the Main Page
+                    if (!articleTitle.contains(":") && !articleTitle.contains("#") && !articleTitle.equals("Main_Page")) 
                     {
-                        // Publish the next url to crawl
-                        crawlProducer.publish(nextUrl, depth + 1);
+                        // Ensure the next url published isn't already in redis cache
+                        if (!Boolean.TRUE.equals(redisCacheTemplate.hasKey(REDIS_KEY_PREFIX + nextUrl)))
+                        {
+                            // Publish the next url to crawl
+                            crawlProducer.publish(nextUrl, depth + 1);
+                        }
                     }
                 }
             }
@@ -158,7 +174,7 @@ public class LaborScopeApplication {
     // Extracts and formats the web-scraped data from the visited URL
     private String[] extractData(Document document) {
         String title = document.select("h1#firstHeading").text();    
-        String pageText = document.select("div.mw-parser-output > p").text();
+        String pageText = document.select("div.mw-parser-output p").text();
         return new String[] {title, pageText};
     }
 
