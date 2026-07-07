@@ -85,24 +85,36 @@ def analyze_page(full_text):
 # Create and return a Page_Analysis and a Page_Entity array utilizing a valid page's id and record
 def create_page_stats(page_id, page_record):
 	print(f"Processing Page ID: {page_id}")
+	# Analyze given page content
 	analysis = analyze_page(page_record.url_content)
 	print(f"SUMMARY: {analysis['page_summary']}")
 	print(f"SENTIMENT: {analysis['page_sentiment']}")
 	print(f"ENTITIES FOUND: {len(analysis['page_entities'])}")
+	# Create Page analysis object
 	page_analysis = Page_Analysis(page_id=page_id,
 		page_summary=analysis["page_summary"], 
 		page_sentiment=analysis["page_sentiment"],
 		analyzed_at=datetime.now().isoformat(timespec='microseconds'))
+	# Store entities
 	entities_collection = []
+	# Store duplicate entities for O(1) check
 	dup_entities = set()
+	# Iterate over each entity
 	for entity in analysis["page_entities"]:
+		# Extract entity word
 		word = entity['word']
+		# Extract entity
 		type = entity['type']
+		# Only process non duplicate entities
 		if word not in dup_entities:
+			# Create entity object
 			page_entity = Page_Entity(page_id=page_id,
 				entity_word=word, entity_type=type)
+			# Add entity to collection
 			entities_collection.append(page_entity)
+			# Add processed entities to duplicate set
 			dup_entities.add(word)
+	# Return Page Analysis object and a list of entities
 	return page_analysis, entities_collection
 
 try:
@@ -115,32 +127,47 @@ try:
 		if message.error():
 				print(f"Consumer error: {message.error()}")
 				continue
-		# Print out the received message and attempt to commit it.
+		# Store the raw decoded payload
 		raw_payload = message.value().decode('utf-8')
-		print(f"Received message: {raw_payload}")
 		try:
+			# Load the payload into a json readable format
 			job_data = json.loads(raw_payload)
+			# Get pageId
 			page_id = job_data.get('pageId')
+			# Only process the page if it has a valid id
 			if page_id:
+				# Begin database session and attempt to analyze the given page
 				db_session = SessionLocal()
 				try:
+					# Query the page from the database
 					page_record = db_session.query(CrawledPage).filter(CrawledPage.id == page_id).first()
+					# Attempt to analyze the page if the query was successful
 					if page_record:
+						# Generate page statistics by providing page id and the page itself
 						page_analysis, page_entity = create_page_stats(page_id, page_record)
+						# Add analysis to the database
 						db_session.add(page_analysis)
+						# Add all entities into database
 						db_session.add_all(page_entity)
+						# Commit changes
 						db_session.commit()
 				except Exception as e:
+					# Revert any changes made
 					db_session.rollback()
 					raise e
 				finally:
+					# Close database once nlp analysis has concluded
 					db_session.close()
+			# Commit the initial message sent to the kafka consumer object
 			consumer.commit(message)
 		except json.JSONDecodeError:
+			# Print out JSON error
 			print("Failed to decode payload as valid JSON")
 		except Exception as db_error:
+			# Print out database error
 			print(f"Database operation failed: {db_error}")
 except KeyboardInterrupt:
     pass
 finally:
+	# Close the kafka consumer object
     consumer.close()
