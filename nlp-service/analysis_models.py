@@ -1,4 +1,5 @@
 from sqlalchemy import Column, BigInteger, Text, Integer, DateTime, ForeignKey, String, create_engine
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
@@ -34,5 +35,23 @@ class Page_Entity(Base):
 	page_id = Column(BigInteger, ForeignKey("crawled_page.id"))
 	entity_word = Column(String)
 	entity_type = Column(String)
+
+""" Define the class to store job listing data (not all job postings will have all the information
+which is why this class acts more of a guide than anything else of what information to store
+"""
+class Job_Listing(Base):
+	__tablename__ = 'job_listing'
+	id = Column(BigInteger, primary_key=True, index=True)
+	page_id = Column(BigInteger, ForeignKey("crawled_page.id"))
+	company = Column(String)
+	job_title = Column(String)
+	job_type = Column(String)
+	skills = Column(ARRAY(String))
+	experience_level = Column(String)
+	job_description = Column(String)
+	pay_range = Column(String)
+	location = Column(String)
+	posted_at = Column()
+	source_site = Column(String)
 
 Base.metadata.create_all(bind=engine)
