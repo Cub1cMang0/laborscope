@@ -21,5 +21,5 @@ public class LaborScopeController {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
-		crawlJobProducer.publish("https://en.wikipedia.org/wiki/Kingdom_Hearts", 1);	}
+		crawlJobProducer.publish("https://remoteok.com/remote-jobs", 1, "Remoteok");	}
 }
