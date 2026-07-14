@@ -8,8 +8,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 
+// Lombok imports
+import lombok.Getter;
+import lombok.Setter;
+
 // This entity is a part of a entity-repository model for cralwed pages
 @Entity
+@Getter
+@Setter
 public class CrawledPage {
     // Generate primary key for eventual PostgreSQL usage
     @Id
@@ -35,43 +41,5 @@ public class CrawledPage {
         this.urlContent = urlContent;
         this.crawledAt = crawledAt;
         this.depth = depth;
-    }
-    // Simple getters
-    public Long getId()
-    {
-        return id;
-    }
-
-    public String getUrl()
-    {
-        return url;
-    }
-
-    public String getTitle()
-    {
-        return title;
-    }
-
-    public String getUrlContent()
-    {
-        return urlContent;
-    }
-
-    public LocalDateTime getCrawledAt()
-    {
-        return crawledAt;
-    }
-
-    public int getDepth()
-    {
-        return depth;
-    }
-    // Override toString for easier retrieval
-    @Override
-    public String toString()
-    {
-        return String.format("CrawledPage[id=%d, url='%s', title='%s', urlContent='%s', crawledAt='%s', depth=%d]",
-            id, url, title, urlContent, crawledAt, depth
-        );
     }
 }
