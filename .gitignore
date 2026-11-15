@@ -9,10 +9,6 @@
 *.env
 .env.*
 !.env.example
-application.yml
-application-*.yml
-!application.yml.example
-!application-*.yml.example
 application.properties
 application-*.properties
 !application.properties.example

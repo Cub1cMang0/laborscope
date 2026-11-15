@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +35,14 @@ public class KafkaConfig {
     @Value ("${spring.kafka.producer.acks}")
     private String acks;
 
+    // Pulls values from application.yml since it previously used static values
+    @Value("${spring.kafka.consumer.auto-offset-reset:earliest}")
+    private String autoOffsetReset;
+    @Value("${spring.kafka.consumer.max-poll-records:10}")
+    private int maxPollRecords;
+    @Value("${spring.kafka.listener.immediate-stop:true}")
+    private boolean immediateStop;
+
     // Initialize Producer Factory's bootstrap servers, key + value serializers, and acks
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
@@ -58,6 +67,8 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.laborscope.*");
         configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.laborscope.kafka.CrawlJobProducer$CrawlJob");
         return new DefaultKafkaConsumerFactory<>(configProps);
@@ -71,6 +82,8 @@ public class KafkaConfig {
     ) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        factory.getContainerProperties().setStopImmediate(immediateStop);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
             new DeadLetterPublishingRecoverer(template),
             new FixedBackOff(1000L, 2)

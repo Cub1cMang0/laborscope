@@ -10,14 +10,19 @@ import crawlercommons.robots.SimpleRobotRulesParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.stereotype.Component;
 
 @Component
 public class RobotHandler {
     
-    // Set up base http client
-    private final OkHttpClient client = new OkHttpClient();
+    // Set up base http client and bound every call to ensure no shutdown blocking
+    OkHttpClient client = new OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .build();
     public BaseRobotRules fetchRules(String baseUrl, String userAgent) throws IOException {
         // Set up the url and request variables to fetch the given website's robots.txt
         String robotsUrl = baseUrl.endsWith("/") ? baseUrl + "robots.txt" : baseUrl + "/robots.txt";

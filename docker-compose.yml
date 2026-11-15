@@ -1,7 +1,6 @@
 services:
     db:
         image: postgres:17
-        container_name: postgres_db
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -80,10 +79,16 @@ services:
             - "${GRAFANA_PORT:-3000}:3000"
         volumes:
             - grafana-storage:/var/lib/grafana
+            - ./grafana/provisioning:/etc/grafana/provisioning:ro,z
+            - ./grafana/dashboards:/etc/grafana/dashboards:ro,z
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         environment:
             - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+            - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/laborscope.json
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            - POSTGRES_DB=${POSTGRES_DB}
         networks:
             - app-network
 
